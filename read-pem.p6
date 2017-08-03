@@ -5,24 +5,19 @@ use Base64;
 use lib <lib>;
 use PKI::X509::Utils;
 
-my $pfil = "t/certbot-acme-testdata/cert-100sans.pem";
-
+my @pfils;
 if !@*ARGS {
     print qq:to/HERE/;
-    Usage: $*PROGRAM-NAME N
-    where N is number of repetitions in 1000s.
+    Usage: $*PROGRAM-NAME go
+
+    Extracts base64 dedoded text from a test set of pem files.
     HERE
     exit;
 }
  
-my $arg = shift @*ARGS;
-my $n = $arg.UInt * 1000;
-say "Running $n repetitions...";
-
 my $debug = 0;
 my $inc = 100;
-for 1..$n -> $i {
-    say "Rep $i" if $debug && !($i mod $inc);
+for @pfils -> $pfil {
     read-pem($pfil);
 }
 
@@ -83,4 +78,24 @@ sub pem2asc($line) {
     }
 }
 
-
+BEGIN {
+@pfils = <
+t/certbot-acme-testdata/cert-100sans.pem
+t/certbot-acme-testdata/cert-idnsans.pem
+t/certbot-acme-testdata/cert-san.pem
+t/certbot-acme-testdata/cert.pem
+t/certbot-acme-testdata/critical-san.pem
+t/certbot-acme-testdata/csr-100sans.pem
+t/certbot-acme-testdata/csr-6sans.pem
+t/certbot-acme-testdata/csr-idnsans.pem
+t/certbot-acme-testdata/csr-nosans.pem
+t/certbot-acme-testdata/csr-san.pem
+t/certbot-acme-testdata/csr.pem
+t/certbot-acme-testdata/dsa512_key.pem
+t/certbot-acme-testdata/rsa1024_key.pem
+t/certbot-acme-testdata/rsa2048_cert.pem
+t/certbot-acme-testdata/rsa2048_key.pem
+t/certbot-acme-testdata/rsa256_key.pem
+t/certbot-acme-testdata/rsa512_key.pem
+>;
+} # end BEGIN block

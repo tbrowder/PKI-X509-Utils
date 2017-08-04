@@ -11,6 +11,7 @@ if !@*ARGS {
     Usage: $*PROGRAM-NAME go
 
     Extracts base64 dedoded text from a test set of pem files.
+
     HERE
     exit;
 }
@@ -18,6 +19,7 @@ if !@*ARGS {
 my $debug = 0;
 my $inc = 100;
 for @pfils -> $pfil {
+    say "Reading cert file '$pfil'...";
     read-pem($pfil);
 }
 
@@ -33,6 +35,9 @@ my %ctyps = [
     'CERTIFICATE REQUEST' => 0,
     'CRL' => 0,
     'CERTIFICATE' => 0,
+    # status: ???
+    'DSA PARAMETERS' => 0,
+    'DSA PRIVATE KEY' => 0,
 ];
 
 my %wtyps = set [
@@ -42,40 +47,104 @@ my %wtyps = set [
     'NEW CERTIFICATE REQUEST',
 ];
 
-my $label = rx/<[\-]>+/;
+my token label-rx {<-[\-]>+}
+
 sub read-pem($fname) {
     my $pem-typ = '';
     my $in-pem = 0;
+    # note there may be multiple certs per file
+    # it is an error to have a known last line followed
+    # by another in-pem line
+    my $last-line = 0;
     for $fname.IO.lines -> $line {
-        if $in-pem {
-            my $asc = pem2asc($line);
-        }
-        elsif $line ~~ /^ \s* '-----BEGIN ' (<$label>) '-----' \s* $/ {
+        if $line ~~ /^ \s* '-----BEGIN ' (<label-rx>) '-----' \s* $/ {
+            $last-line = 0;
             # test for pem type
+            my $label = ~$0;
+            say "Found beginning cert label '$label'";
             $in-pem = 1;
         }
-        elsif $line ~~ /^ \s* '-----END ' (<$label>) '-----' \s* $/ {
+        elsif $line ~~ /^ \s* '-----END ' (<label-rx>) '-----' \s* $/ {
+            $last-line = 0;
+            my $label = ~$0;
+            say "Found ending cert label '$label'";
             $in-pem = 0;
+        }
+        elsif $in-pem {
+            my $asc = pem2asc($line, $last-line);
         }
     }
 }
 
-sub pem2asc($line) {
+sub pem2asc($line, $last-line is rw --> Str) {
     constant @base64 = <
         A B C D E F G H I J K L M N O P Q R S T U V W X Y Z
         a b c d e f g h i j k l m n o p q r s t u v w x y z
         0 1 2 3 4 5 6 7 8 9 + /
     >;
+    state %base64 = @base64.kv.hash.antipairs;
 
     my $nchars = $line.chars;
     # should have 64 chars per line (not counting the eol)
-    if $nchars != 64 {
-        say "WARNING: line '$line' has $nchars, should be 64.";
+    # the last line may be padded to 64 or
+    # have less than 64 with or without padding
+    # no way, without a peek at the next line, to know
+    # for sure it is the last pem line
+    
+    my $pchars = 0;
+    my $pidx = index $line, '=';
+    if $pidx {
+        $pchars = $nchars - $pidx;
+        die "FATAL: num pad chars = $pchars which is > 2" if $pchars > 2;
     }
+ 
+    if $pchars || $nchars != 64 {
+        if !$last-line {
+            $last-line = 1;
+        }
+        else {
+            say "WARNING: line '$line' is a known last line with an existing last line.";
+            say "         num chars = $nchars which is > 64" if $nchars < 64;
+            say "         num pad chars = $pchars" if $pchars;
+        }
+    }
+
     my $nbits = $nchars * 8;
     if !($nbits mod 6) {
         # okay
     }
+    else {
+        say "WARNING: Illegal line '$line'";
+        say "         nbits ($nbits; for nchars $nchars) is not a multiple of 6!";
+        return '';
+    }
+
+    my @chars = $line.comb;
+    my $asc = '';
+
+    my $count = 0;
+    loop (my $i = 0; $i < $nchars; $i += 4) {
+        # convert the 4 characters into a 24-bit binary string
+        # we should have 4 chars
+        my $nchars-remain = $nchars - $i; 
+        die "FATAL: have $nchars-remain chars but should have 4" if $nchars-remain < 4;
+        # get the 24-bit string first
+        my @bits;
+        my $has-pad = 0;
+        loop (my $j = 0; $j < 4; ++$j) {
+            my $e = @chars[$i+$j]; # encoded char
+            $has-pad = 1 if $e eq '=';
+            my $d = $e eq '=' ?? 0 !! %base64{$e}; 
+            @bits.append($d.sprintf("%06b").comb);
+        }
+        die "FATAL: nbits != 24" if @bits.elems != 24;
+        # convert each significant byte back to ascii
+        $asc ~= @bits[0..7].parse-base(2).ord; 
+        $asc ~= @bits[8..15].parse-base(2).ord if !$has-pad || $pchars < 2; 
+        $asc ~= @bits[16..23].parse-base(2).ord if !$has-pad || $pchars < 1; 
+    }
+
+    return $asc;
 }
 
 BEGIN {

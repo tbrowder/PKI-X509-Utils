@@ -1,0 +1,26 @@
+Plan:
+
+use native call in a module to access the various openssl subs of interest:
+
+  x509
+  rsa
+  dsa
+  etc.
+
+Main exported sub is named something like:
+
+  read-cert($cert);
+
+which:
+
+  reads the string or file
+  determines the type: pem or der
+  if der
+    converts to pem
+    determines type
+      uses appropriate openssl func to
+        write a text version
+      parses the text to get information
+
+
+

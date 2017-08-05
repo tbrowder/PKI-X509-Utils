@@ -1,6 +1,6 @@
 #!/usr/bin/env perl6
 
-use Base64;
+use NativeCall;
 
 use lib <lib>;
 use PKI::X509::Utils;
@@ -63,15 +63,21 @@ sub read-pem($fname) {
             my $label = ~$0;
             say "Found beginning cert label '$label'";
             $in-pem = 1;
+            $pem-typ = $label;
         }
         elsif $line ~~ /^ \s* '-----END ' (<label-rx>) '-----' \s* $/ {
             $last-line = 0;
             my $label = ~$0;
             say "Found ending cert label '$label'";
             $in-pem = 0;
+            if $label ne $pem-typ {
+                say "WARNING: beginning cert label '$pem-typ' doesn't";
+                say "         match ending cert label '$label'";
+            }
         }
         elsif $in-pem {
             my $asc = pem2asc($line, $last-line);
+            say $asc;
         }
     }
 }
@@ -109,13 +115,12 @@ sub pem2asc($line, $last-line is rw --> Str) {
         }
     }
 
-    my $nbits = $nchars * 8;
-    if !($nbits mod 6) {
+    if !($nchars mod 4) {
         # okay
     }
     else {
         say "WARNING: Illegal line '$line'";
-        say "         nbits ($nbits; for nchars $nchars) is not a multiple of 6!";
+        say "         nchars $nchars is not a multiple of 4!";
         return '';
     }
 
@@ -135,13 +140,14 @@ sub pem2asc($line, $last-line is rw --> Str) {
             my $e = @chars[$i+$j]; # encoded char
             $has-pad = 1 if $e eq '=';
             my $d = $e eq '=' ?? 0 !! %base64{$e}; 
-            @bits.append($d.sprintf("%06b").comb);
+            my $b = sprintf "%06b", $d;
+            @bits.append($b.comb);
         }
         die "FATAL: nbits != 24" if @bits.elems != 24;
         # convert each significant byte back to ascii
-        $asc ~= @bits[0..7].parse-base(2).ord; 
-        $asc ~= @bits[8..15].parse-base(2).ord if !$has-pad || $pchars < 2; 
-        $asc ~= @bits[16..23].parse-base(2).ord if !$has-pad || $pchars < 1; 
+        $asc ~= @bits[0..7].join.parse-base(2).chr; 
+        $asc ~= @bits[8..15].join.parse-base(2).chr if !$has-pad || $pchars < 2; 
+        $asc ~= @bits[16..23].join.parse-base(2).chr if !$has-pad || $pchars < 1; 
     }
 
     return $asc;

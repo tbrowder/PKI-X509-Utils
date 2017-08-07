@@ -1,6 +1,10 @@
+use NativeCall;
+sub x509(int32, CArray[Str] --> int32) is native('openssl') is symbol('x509_main') { * }
+
 #!/usr/bin/env perl6
 
 use NativeCall;
+sub x509(int32, CArray[Str] --> int32) is native('openssl') { * }
 
 use lib <lib>;
 use PKI::X509::Utils;
@@ -20,6 +24,13 @@ my $debug = 0;
 my $inc = 100;
 for @pfils -> $pfil {
     say "Reading cert file '$pfil'...";
+    # use x509
+    my $args = "-in $pfil -noout -text -file '/tmp/pem'";
+    my @args = $args.words;
+    my $ret = x509_main(@args.elems, @args);
+
+    last;
+
     read-pem($pfil);
 }
 

@@ -1,0 +1,17 @@
+t/certbot-acme-testdata/cert-100sans.pem
+t/certbot-acme-testdata/cert-idnsans.pem
+t/certbot-acme-testdata/cert-san.pem
+t/certbot-acme-testdata/cert.pem
+t/certbot-acme-testdata/critical-san.pem
+t/certbot-acme-testdata/csr-100sans.pem
+t/certbot-acme-testdata/csr-6sans.pem
+t/certbot-acme-testdata/csr-idnsans.pem
+t/certbot-acme-testdata/csr-nosans.pem
+t/certbot-acme-testdata/csr-san.pem
+t/certbot-acme-testdata/csr.pem
+t/certbot-acme-testdata/dsa512_key.pem
+t/certbot-acme-testdata/rsa1024_key.pem
+t/certbot-acme-testdata/rsa2048_cert.pem
+t/certbot-acme-testdata/rsa2048_key.pem
+t/certbot-acme-testdata/rsa256_key.pem
+t/certbot-acme-testdata/rsa512_key.pem

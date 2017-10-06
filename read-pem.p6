@@ -1,10 +1,8 @@
-use NativeCall;
-sub x509(int32, CArray[Str] --> int32) is native('openssl') is symbol('x509_main') { * }
-
 #!/usr/bin/env perl6
 
 use NativeCall;
-sub x509(int32, CArray[Str] --> int32) is native('openssl') { * }
+constant LIBSSL = 'gnutls'; #'ssl';
+sub x509(int32, CArray[Str] --> int32) is native(LIBSSL) is symbol('x509_main') { * }
 
 use lib <lib>;
 use PKI::X509::Utils;
@@ -27,7 +25,7 @@ for @pfils -> $pfil {
     # use x509
     my $args = "-in $pfil -noout -text -file '/tmp/pem'";
     my @args = $args.words;
-    my $ret = x509_main(@args.elems, @args);
+    my $ret = x509(@args.elems, @args);
 
     last;
 
